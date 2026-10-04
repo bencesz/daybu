@@ -1,30 +1,43 @@
+"use client";
+
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+
+const PdfDocumentViewer = dynamic(
+  () =>
+    import("@/components/PdfDocumentViewer").then(
+      (mod) => mod.PdfDocumentViewer,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="p-6 text-center text-sm text-foreground/60">…</p>
+    ),
+  },
+);
 
 export default function SmpcPage() {
   const t = useTranslations("Smpc");
 
   return (
-    <main className="flex min-h-full flex-1 flex-col">
-      <div className="relative min-h-[70vh] flex-1 overflow-hidden bg-black/3 dark:bg-white/4">
-        <iframe
-          title={t("pdfTitle")}
-          src="/SmPC.pdf"
-          className="absolute inset-0 h-full w-full border-0"
-        >
-        </iframe>
-      </div>
-
-      <p className="text-center text-sm text-foreground/60 sm:hidden">
-        {t("mobileFallback")}{" "}
-        <Link
-          href="/SmPC.pdf"
-          download="SmPC.pdf"
-          className="font-medium text-foreground underline underline-offset-4 hover:opacity-70"
-        >
-          {t("download")}
-        </Link>
-      </p>
+    <main className="flex min-h-full flex-col">
+      <a
+        href="/SmPC.pdf"
+        download="SmPC.pdf"
+        className="fixed bg-linear-to-b from-sky-600/90 to-sky-800/95 w-full h-8 sm:h-12 bottom-0 right-0 z-10 font-mono tracking-wide p-3 sm:p-5 flex items-center justify-center gap-1 text-sm sm:text-base font-medium text-white text-shadow-sm hover:from-sky-800/95"
+      >
+        {t("download")}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" className="size-4 sm:size-5">
+          <path fill="currentColor" d="M128 128C128 92.7 156.7 64 192 64L341.5 64C358.5 64 374.8 70.7 386.8 82.7L493.3 189.3C505.3 201.3 512 217.6 512 234.6L512 512C512 547.3 483.3 576 448 576L192 576C156.7 576 128 547.3 128 512L128 128zM336 122.5L336 216C336 229.3 346.7 240 360 240L453.5 240L336 122.5zM303 505C312.4 514.4 327.6 514.4 336.9 505L400.9 441C410.3 431.6 410.3 416.4 400.9 407.1C391.5 397.8 376.3 397.7 367 407.1L344 430.1L344 344C344 330.7 333.3 320 320 320C306.7 320 296 330.7 296 344L296 430.1L273 407.1C263.6 397.7 248.4 397.7 239.1 407.1C229.8 416.5 229.7 431.7 239.1 441L303.1 505z"/>
+        </svg>
+      </a>
+      <PdfDocumentViewer
+        file="/SmPC.pdf"
+        title={t("pdfTitle")}
+        loadingLabel={t("loading")}
+        errorLabel={t("error")}
+        className="pb-8 sm:pb-12"
+      />
     </main>
   );
 }

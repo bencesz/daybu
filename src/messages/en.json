@@ -10,6 +10,8 @@
     "home": "Home",
     "download": "Download PDF",
     "pdfTitle": "SmPC PDF",
+    "loading": "Loading PDF…",
+    "error": "Could not display the PDF. Use the download link.",
     "mobileFallback": "If the PDF does not display, use the download link."
   },
   "LocaleSwitcher": {

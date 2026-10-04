@@ -10,6 +10,8 @@
     "home": "Strona główna",
     "download": "Pobierz PDF",
     "pdfTitle": "SmPC PDF",
+    "loading": "Ładowanie PDF…",
+    "error": "Nie udało się wyświetlić PDF. Użyj linku do pobrania.",
     "mobileFallback": "Jeśli PDF się nie wyświetla, użyj linku do pobrania."
   },
   "LocaleSwitcher": {
