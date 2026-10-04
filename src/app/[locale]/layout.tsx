@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Geist, Geist_Mono } from "next/font/google";
 // import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { routing } from "@/i18n/routing";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -61,6 +62,7 @@ export default async function LocaleLayout({
           </div> */}
           {children}
         </NextIntlClientProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
