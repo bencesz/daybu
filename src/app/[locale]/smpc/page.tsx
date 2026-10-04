@@ -36,6 +36,9 @@ export default function SmpcPage() {
         title={t("pdfTitle")}
         loadingLabel={t("loading")}
         errorLabel={t("error")}
+        previousLabel={t("previous")}
+        nextLabel={t("next")}
+        pageLabel={t("page")}
         className="pb-8 sm:pb-12"
       />
     </main>

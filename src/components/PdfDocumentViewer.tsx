@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import { useEffect, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -13,61 +12,125 @@ type PdfDocumentViewerProps = {
   errorLabel: string;
   className?: string;
   documentClassName?: string;
+  previousLabel?: string;
+  nextLabel?: string;
+  pageLabel?: string;
 };
 
-function measureWidth(node: HTMLElement | null) {
-  const raw = node?.clientWidth || window.innerWidth;
-  return Math.max(Math.floor(raw) - 8, 280);
+function DesktopPdf({ file, title }: { file: string; title: string }) {
+  return (
+    <iframe
+      title={title}
+      src={file}
+      className="h-[calc(100dvh-3rem)] w-full flex-1 border-0"
+    />
+  );
 }
 
-function LazyPage({
-  pageNumber,
-  width,
-  height,
-  pixelRatio,
+function MobilePdf({
+  file,
+  title,
+  loadingLabel,
+  errorLabel,
+  previousLabel,
+  nextLabel,
+  pageLabel,
 }: {
-  pageNumber: number;
-  width: number;
-  height: number;
-  pixelRatio: number;
+  file: string;
+  title: string;
+  loadingLabel: string;
+  errorLabel: string;
+  previousLabel: string;
+  nextLabel: string;
+  pageLabel: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [shouldRender, setShouldRender] = useState(pageNumber <= 1);
+  const [numPages, setNumPages] = useState(0);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [failed, setFailed] = useState(false);
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    const node = ref.current;
-    if (!node || shouldRender) return;
+    const update = () => {
+      setWidth(Math.max(Math.floor(window.innerWidth) - 16, 280));
+    };
+    update();
+    window.addEventListener("orientationchange", update);
+    return () => window.removeEventListener("orientationchange", update);
+  }, []);
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldRender(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "200% 0px", threshold: 0.01 },
+  if (failed) {
+    return (
+      <div className="flex flex-col items-center gap-3 p-6 text-center">
+        <p className="text-sm text-foreground/70">{errorLabel}</p>
+        <a
+          href={file}
+          className="text-sm font-medium underline underline-offset-4"
+        >
+          {file.split("/").pop()}
+        </a>
+      </div>
     );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [shouldRender]);
+  }
 
   return (
-    <div
-      ref={ref}
-      className="flex w-full shrink-0 justify-center overflow-hidden"
-      style={{ width, height }}
-    >
-      {shouldRender ? (
-        <Page
-          pageNumber={pageNumber}
-          width={width}
-          devicePixelRatio={pixelRatio}
-          renderTextLayer={false}
-          renderAnnotationLayer={false}
-          loading={null}
-        />
-      ) : null}
+    <div className="flex w-full flex-col" aria-label={title}>
+      <div className="flex items-center justify-between gap-2 border-b border-black/10 px-3 py-2 text-sm dark:border-white/15">
+        <button
+          type="button"
+          className="rounded px-3 py-2 disabled:opacity-30"
+          onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
+          disabled={pageNumber <= 1}
+        >
+          {previousLabel}
+        </button>
+        <span className="tabular-nums text-foreground/70">
+          {pageLabel
+            .replace("{current}", String(pageNumber))
+            .replace("{total}", String(numPages || "…"))}
+        </span>
+        <button
+          type="button"
+          className="rounded px-3 py-2 disabled:opacity-30"
+          onClick={() =>
+            setPageNumber((page) =>
+              numPages ? Math.min(numPages, page + 1) : page,
+            )
+          }
+          disabled={!numPages || pageNumber >= numPages}
+        >
+          {nextLabel}
+        </button>
+      </div>
+
+      <div className="flex min-h-[70dvh] w-full justify-center overflow-x-hidden bg-black/[.03] px-2 py-3 dark:bg-white/[.04]">
+        <Document
+          file={file}
+          loading={
+            <p className="p-6 text-center text-sm text-foreground/60">
+              {loadingLabel}
+            </p>
+          }
+          onLoadSuccess={({ numPages: nextNumPages }) => {
+            setNumPages(nextNumPages);
+            setFailed(false);
+          }}
+          onLoadError={() => setFailed(true)}
+        >
+          {width > 0 ? (
+            <Page
+              pageNumber={pageNumber}
+              width={width}
+              devicePixelRatio={Math.min(
+                typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
+                1.5,
+              )}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              loading={null}
+            />
+          ) : null}
+        </Document>
+      </div>
     </div>
   );
 }
@@ -78,124 +141,42 @@ export function PdfDocumentViewer({
   loadingLabel,
   errorLabel,
   className,
-  documentClassName,
+  previousLabel = "Previous",
+  nextLabel = "Next",
+  pageLabel = "{current} / {total}",
 }: PdfDocumentViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const widthRef = useRef(0);
-  const scrollYRef = useRef(0);
-  const [width, setWidth] = useState(0);
-  const [pageHeight, setPageHeight] = useState(0);
-  const [numPages, setNumPages] = useState(0);
-  const [failed, setFailed] = useState(false);
-  const [pixelRatio] = useState(() =>
-    typeof window === "undefined"
-      ? 1
-      : Math.min(window.devicePixelRatio || 1, 1.5),
-  );
+  const [mode, setMode] = useState<"mobile" | "desktop" | null>(null);
 
   useEffect(() => {
-    const node = containerRef.current;
-    const applyWidth = () => {
-      const next = measureWidth(node);
-      // Ignore tiny width jitter from mobile browser chrome show/hide.
-      if (
-        widthRef.current > 0 &&
-        Math.abs(next - widthRef.current) < Math.max(48, widthRef.current * 0.12)
-      ) {
-        return;
-      }
-      scrollYRef.current = window.scrollY;
-      widthRef.current = next;
-      setWidth(next);
-    };
-
-    applyWidth();
-
-    const onOrientation = () => {
-      window.setTimeout(applyWidth, 250);
-    };
-
-    window.addEventListener("orientationchange", onOrientation);
-    // Only react to real viewport width changes (e.g. rotation / split screen),
-    // not vertical URL-bar resizing.
-    window.addEventListener("resize", applyWidth);
-
-    return () => {
-      window.removeEventListener("orientationchange", onOrientation);
-      window.removeEventListener("resize", applyWidth);
-    };
+    const media = window.matchMedia("(max-width: 768px), (pointer: coarse)");
+    const update = () => setMode(media.matches ? "mobile" : "desktop");
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
   }, []);
 
-  useLayoutEffect(() => {
-    if (scrollYRef.current > 0) {
-      window.scrollTo(0, scrollYRef.current);
-    }
-  }, [width, pageHeight]);
-
-  const onDocumentLoadSuccess = async (pdf: PDFDocumentProxy) => {
-    setNumPages(pdf.numPages);
-    setFailed(false);
-
-    try {
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1 });
-      const aspect = viewport.height / viewport.width;
-      const nextHeight = Math.round(widthRef.current * aspect);
-      setPageHeight(nextHeight);
-    } catch {
-      setPageHeight(Math.round(widthRef.current * 1.414));
-    }
-  };
+  if (!mode) {
+    return (
+      <p className={`p-6 text-center text-sm text-foreground/60 ${className ?? ""}`}>
+        {loadingLabel}
+      </p>
+    );
+  }
 
   return (
-    <div
-      ref={containerRef}
-      className={`flex w-full flex-col ${className ?? ""}`}
-      role="document"
-      aria-label={title}
-      style={{ overflowAnchor: "none" }}
-    >
-      {failed ? (
-        <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
-          <p className="text-sm text-foreground/70">{errorLabel}</p>
-          <a
-            href={file}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-medium underline underline-offset-4"
-          >
-            {file.split("/").pop()}
-          </a>
-        </div>
+    <div className={`w-full ${className ?? ""}`}>
+      {mode === "desktop" ? (
+        <DesktopPdf file={file} title={title} />
       ) : (
-        <Document
+        <MobilePdf
           file={file}
-          loading={
-            <p className="p-6 text-center text-sm text-foreground/60">
-              {loadingLabel}
-            </p>
-          }
-          onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={() => setFailed(true)}
-          error={
-            <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
-              <p className="text-sm text-foreground/70">{errorLabel}</p>
-            </div>
-          }
-          className={`flex w-full flex-col items-center gap-2 ${documentClassName ?? ""}`}
-        >
-          {width > 0 &&
-            pageHeight > 0 &&
-            Array.from({ length: numPages }, (_, index) => (
-              <LazyPage
-                key={`page_${index + 1}`}
-                pageNumber={index + 1}
-                width={width}
-                height={pageHeight}
-                pixelRatio={pixelRatio}
-              />
-            ))}
-        </Document>
+          title={title}
+          loadingLabel={loadingLabel}
+          errorLabel={errorLabel}
+          previousLabel={previousLabel}
+          nextLabel={nextLabel}
+          pageLabel={pageLabel}
+        />
       )}
     </div>
   );
