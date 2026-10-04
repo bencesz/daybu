@@ -1,8 +1,16 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+
+function hrefForLocale(locale: string, pathname: string) {
+  if (locale === routing.defaultLocale) {
+    return pathname || "/";
+  }
+
+  return `/${locale}${pathname === "/" ? "" : pathname}`;
+}
 
 export function LocaleSwitcher() {
   const locale = useLocale();
@@ -14,19 +22,19 @@ export function LocaleSwitcher() {
       {routing.locales.map((item) => {
         const active = item === locale;
         return (
-          <Link
+          <a
             key={item}
-            href={pathname}
-            locale={item}
+            href={hrefForLocale(item, pathname)}
+            hrefLang={item}
             className={
               active
                 ? "font-semibold text-foreground"
                 : "text-foreground/50 underline underline-offset-4 hover:opacity-70"
             }
-            aria-current={active ? "true" : undefined}
+            aria-current={active ? "page" : undefined}
           >
             {t(item)}
-          </Link>
+          </a>
         );
       })}
     </nav>
