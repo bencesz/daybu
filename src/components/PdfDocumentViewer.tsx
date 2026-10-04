@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -14,6 +14,11 @@ type PdfDocumentViewerProps = {
   className?: string;
   documentClassName?: string;
 };
+
+function initialWidth() {
+  if (typeof window === "undefined") return 0;
+  return Math.max(Math.floor(window.innerWidth - 16), 280);
+}
 
 const PdfPage = memo(function PdfPage({
   pageNumber,
@@ -29,12 +34,7 @@ const PdfPage = memo(function PdfPage({
   return (
     <div
       className="flex w-full shrink-0 justify-center"
-      style={{
-        width,
-        height,
-        contentVisibility: "auto",
-        containIntrinsicSize: `${width}px ${height}px`,
-      }}
+      style={{ width: "100%", height }}
     >
       <Page
         pageNumber={pageNumber}
@@ -56,10 +56,8 @@ export function PdfDocumentViewer({
   className,
   documentClassName,
 }: PdfDocumentViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const measuredRef = useRef(false);
-  const [width, setWidth] = useState(0);
-  const [pageHeight, setPageHeight] = useState(0);
+  const [width] = useState(initialWidth);
+  const [aspectRatio, setAspectRatio] = useState(1.414);
   const [numPages, setNumPages] = useState(0);
   const [failed, setFailed] = useState(false);
   const [pixelRatio] = useState(() =>
@@ -68,16 +66,10 @@ export function PdfDocumentViewer({
       : Math.min(window.devicePixelRatio || 1, 1.25),
   );
 
-  useEffect(() => {
-    if (measuredRef.current) return;
-    const node = containerRef.current;
-    const next = Math.max(
-      Math.floor((node?.clientWidth || window.innerWidth) - 8),
-      280,
-    );
-    measuredRef.current = true;
-    setWidth(next);
-  }, []);
+  const pageHeight = useMemo(
+    () => (width > 0 ? Math.round(width * aspectRatio) : 0),
+    [width, aspectRatio],
+  );
 
   const onDocumentLoadSuccess = async (pdf: PDFDocumentProxy) => {
     setNumPages(pdf.numPages);
@@ -86,15 +78,16 @@ export function PdfDocumentViewer({
     try {
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
-      setPageHeight(Math.round(width * (viewport.height / viewport.width)));
+      if (viewport.width > 0) {
+        setAspectRatio(viewport.height / viewport.width);
+      }
     } catch {
-      setPageHeight(Math.round(width * 1.414));
+      // Keep default A4-ish aspect ratio.
     }
   };
 
   return (
     <div
-      ref={containerRef}
       className={`flex w-full flex-col ${className ?? ""}`}
       role="document"
       aria-label={title}
@@ -130,6 +123,7 @@ export function PdfDocumentViewer({
         >
           {width > 0 &&
             pageHeight > 0 &&
+            numPages > 0 &&
             Array.from({ length: numPages }, (_, index) => (
               <PdfPage
                 key={index + 1}
