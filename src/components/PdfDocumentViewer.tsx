@@ -3,6 +3,8 @@
 import { memo, useMemo, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
@@ -18,6 +20,12 @@ type PdfDocumentViewerProps = {
 function initialWidth() {
   if (typeof window === "undefined") return 0;
   return Math.max(Math.floor(window.innerWidth - 16), 280);
+}
+
+function initialPixelRatio() {
+  if (typeof window === "undefined") return 2;
+  // Render above screen density so text stays sharp on retina and light pinch-zoom.
+  return Math.min(Math.max(window.devicePixelRatio || 1, 2) * 1.5, 3);
 }
 
 const PdfPage = memo(function PdfPage({
@@ -40,8 +48,8 @@ const PdfPage = memo(function PdfPage({
         pageNumber={pageNumber}
         width={width}
         devicePixelRatio={pixelRatio}
-        renderTextLayer={false}
-        renderAnnotationLayer={false}
+        renderTextLayer
+        renderAnnotationLayer
         loading={null}
       />
     </div>
@@ -60,11 +68,7 @@ export function PdfDocumentViewer({
   const [aspectRatio, setAspectRatio] = useState(1.414);
   const [numPages, setNumPages] = useState(0);
   const [failed, setFailed] = useState(false);
-  const [pixelRatio] = useState(() =>
-    typeof window === "undefined"
-      ? 1
-      : Math.min(window.devicePixelRatio || 1, 1.25),
-  );
+  const [pixelRatio] = useState(initialPixelRatio);
 
   const pageHeight = useMemo(
     () => (width > 0 ? Math.round(width * aspectRatio) : 0),
