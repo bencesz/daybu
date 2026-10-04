@@ -9,7 +9,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 type PdfDocumentViewerProps = {
   file: string;
   title: string;
-  loadingLabel: string;
+  loadingLabel: React.ReactNode | string | null;
   errorLabel: string;
   className?: string;
   documentClassName?: string;
@@ -31,11 +31,13 @@ const PdfPage = memo(function PdfPage({
   width,
   height,
   pixelRatio,
+  loading,
 }: {
   pageNumber: number;
   width: number;
   height: number;
   pixelRatio: number;
+  loading: React.ReactNode;
 }) {
   return (
     <div
@@ -48,7 +50,7 @@ const PdfPage = memo(function PdfPage({
         devicePixelRatio={pixelRatio}
         renderTextLayer={false}
         renderAnnotationLayer={false}
-        loading={null}
+        loading={loading}
       />
     </div>
   );
@@ -133,6 +135,7 @@ export function PdfDocumentViewer({
                 width={width}
                 height={pageHeight}
                 pixelRatio={pixelRatio}
+                loading={loadingLabel}
               />
             ))}
         </Document>
