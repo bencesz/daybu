@@ -12,10 +12,7 @@
     "pdfTitle": "SmPC PDF",
     "loading": "Loading PDF…",
     "error": "Could not display the PDF. Use the download link.",
-    "mobileFallback": "If the PDF does not display, use the download link.",
-    "previous": "Previous",
-    "next": "Next",
-    "page": "{current} / {total}"
+    "mobileFallback": "If the PDF does not display, use the download link."
   },
   "LocaleSwitcher": {
     "label": "Language",

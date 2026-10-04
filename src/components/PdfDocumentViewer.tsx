@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -12,128 +13,40 @@ type PdfDocumentViewerProps = {
   errorLabel: string;
   className?: string;
   documentClassName?: string;
-  previousLabel?: string;
-  nextLabel?: string;
-  pageLabel?: string;
 };
 
-function DesktopPdf({ file, title }: { file: string; title: string }) {
-  return (
-    <iframe
-      title={title}
-      src={file}
-      className="h-[calc(100dvh-3rem)] w-full flex-1 border-0"
-    />
-  );
-}
-
-function MobilePdf({
-  file,
-  title,
-  loadingLabel,
-  errorLabel,
-  previousLabel,
-  nextLabel,
-  pageLabel,
+const PdfPage = memo(function PdfPage({
+  pageNumber,
+  width,
+  height,
+  pixelRatio,
 }: {
-  file: string;
-  title: string;
-  loadingLabel: string;
-  errorLabel: string;
-  previousLabel: string;
-  nextLabel: string;
-  pageLabel: string;
+  pageNumber: number;
+  width: number;
+  height: number;
+  pixelRatio: number;
 }) {
-  const [numPages, setNumPages] = useState(0);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [failed, setFailed] = useState(false);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const update = () => {
-      setWidth(Math.max(Math.floor(window.innerWidth) - 16, 280));
-    };
-    update();
-    window.addEventListener("orientationchange", update);
-    return () => window.removeEventListener("orientationchange", update);
-  }, []);
-
-  if (failed) {
-    return (
-      <div className="flex flex-col items-center gap-3 p-6 text-center">
-        <p className="text-sm text-foreground/70">{errorLabel}</p>
-        <a
-          href={file}
-          className="text-sm font-medium underline underline-offset-4"
-        >
-          {file.split("/").pop()}
-        </a>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex w-full flex-col" aria-label={title}>
-      <div className="flex items-center justify-between gap-2 border-b border-black/10 px-3 py-2 text-sm dark:border-white/15">
-        <button
-          type="button"
-          className="rounded px-3 py-2 disabled:opacity-30"
-          onClick={() => setPageNumber((page) => Math.max(1, page - 1))}
-          disabled={pageNumber <= 1}
-        >
-          {previousLabel}
-        </button>
-        <span className="tabular-nums text-foreground/70">
-          {pageLabel
-            .replace("{current}", String(pageNumber))
-            .replace("{total}", String(numPages || "…"))}
-        </span>
-        <button
-          type="button"
-          className="rounded px-3 py-2 disabled:opacity-30"
-          onClick={() =>
-            setPageNumber((page) =>
-              numPages ? Math.min(numPages, page + 1) : page,
-            )
-          }
-          disabled={!numPages || pageNumber >= numPages}
-        >
-          {nextLabel}
-        </button>
-      </div>
-
-      <div className="flex min-h-[70dvh] w-full justify-center overflow-x-hidden bg-black/[.03] px-2 py-3 dark:bg-white/[.04]">
-        <Document
-          file={file}
-          loading={
-            <p className="p-6 text-center text-sm text-foreground/60">
-              {loadingLabel}
-            </p>
-          }
-          onLoadSuccess={({ numPages: nextNumPages }) => {
-            setNumPages(nextNumPages);
-            setFailed(false);
-          }}
-          onLoadError={() => setFailed(true)}
-        >
-          {width > 0 ? (
-            <Page
-              pageNumber={pageNumber}
-              width={width}
-              devicePixelRatio={Math.min(
-                typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
-                1.5,
-              )}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-              loading={null}
-            />
-          ) : null}
-        </Document>
-      </div>
+    <div
+      className="flex w-full shrink-0 justify-center"
+      style={{
+        width,
+        height,
+        contentVisibility: "auto",
+        containIntrinsicSize: `${width}px ${height}px`,
+      }}
+    >
+      <Page
+        pageNumber={pageNumber}
+        width={width}
+        devicePixelRatio={pixelRatio}
+        renderTextLayer={false}
+        renderAnnotationLayer={false}
+        loading={null}
+      />
     </div>
   );
-}
+});
 
 export function PdfDocumentViewer({
   file,
@@ -141,42 +54,92 @@ export function PdfDocumentViewer({
   loadingLabel,
   errorLabel,
   className,
-  previousLabel = "Previous",
-  nextLabel = "Next",
-  pageLabel = "{current} / {total}",
+  documentClassName,
 }: PdfDocumentViewerProps) {
-  const [mode, setMode] = useState<"mobile" | "desktop" | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measuredRef = useRef(false);
+  const [width, setWidth] = useState(0);
+  const [pageHeight, setPageHeight] = useState(0);
+  const [numPages, setNumPages] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const [pixelRatio] = useState(() =>
+    typeof window === "undefined"
+      ? 1
+      : Math.min(window.devicePixelRatio || 1, 1.25),
+  );
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 768px), (pointer: coarse)");
-    const update = () => setMode(media.matches ? "mobile" : "desktop");
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    if (measuredRef.current) return;
+    const node = containerRef.current;
+    const next = Math.max(
+      Math.floor((node?.clientWidth || window.innerWidth) - 8),
+      280,
+    );
+    measuredRef.current = true;
+    setWidth(next);
   }, []);
 
-  if (!mode) {
-    return (
-      <p className={`p-6 text-center text-sm text-foreground/60 ${className ?? ""}`}>
-        {loadingLabel}
-      </p>
-    );
-  }
+  const onDocumentLoadSuccess = async (pdf: PDFDocumentProxy) => {
+    setNumPages(pdf.numPages);
+    setFailed(false);
+
+    try {
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      setPageHeight(Math.round(width * (viewport.height / viewport.width)));
+    } catch {
+      setPageHeight(Math.round(width * 1.414));
+    }
+  };
 
   return (
-    <div className={`w-full ${className ?? ""}`}>
-      {mode === "desktop" ? (
-        <DesktopPdf file={file} title={title} />
+    <div
+      ref={containerRef}
+      className={`flex w-full flex-col ${className ?? ""}`}
+      role="document"
+      aria-label={title}
+    >
+      {failed ? (
+        <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
+          <p className="text-sm text-foreground/70">{errorLabel}</p>
+          <a
+            href={file}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            {file.split("/").pop()}
+          </a>
+        </div>
       ) : (
-        <MobilePdf
+        <Document
           file={file}
-          title={title}
-          loadingLabel={loadingLabel}
-          errorLabel={errorLabel}
-          previousLabel={previousLabel}
-          nextLabel={nextLabel}
-          pageLabel={pageLabel}
-        />
+          loading={
+            <p className="p-6 text-center text-sm text-foreground/60">
+              {loadingLabel}
+            </p>
+          }
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={() => setFailed(true)}
+          error={
+            <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
+              <p className="text-sm text-foreground/70">{errorLabel}</p>
+            </div>
+          }
+          className={`flex w-full flex-col items-center gap-2 ${documentClassName ?? ""}`}
+        >
+          {width > 0 &&
+            pageHeight > 0 &&
+            Array.from({ length: numPages }, (_, index) => (
+              <PdfPage
+                key={index + 1}
+                pageNumber={index + 1}
+                width={width}
+                height={pageHeight}
+                pixelRatio={pixelRatio}
+              />
+            ))}
+        </Document>
       )}
     </div>
   );
