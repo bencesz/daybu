@@ -4,12 +4,12 @@
     "description": "daybu"
   },
   "Home": {
-    "referenceLink": "Go to PDF"
+    "smpcLink": "Go to PDF"
   },
-  "Reference": {
+  "Smpc": {
     "home": "Home",
     "download": "Download PDF",
-    "pdfTitle": "Reference PDF",
+    "pdfTitle": "SmPC PDF",
     "mobileFallback": "If the PDF does not display, use the download link."
   },
   "LocaleSwitcher": {

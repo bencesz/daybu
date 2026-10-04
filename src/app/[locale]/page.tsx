@@ -7,10 +7,10 @@ export default function Home() {
   return (
     <main className="flex min-h-full flex-1 items-center justify-center p-6">
       <Link
-        href="/reference"
+        href="/smpc"
         className="text-lg text-foreground underline underline-offset-4 hover:opacity-70"
       >
-        {t("referenceLink")}
+        {t("smpcLink")}
       </Link>
     </main>
   );
