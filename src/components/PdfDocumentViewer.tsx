@@ -5,10 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
 type PdfDocumentViewerProps = {
   file: string;
@@ -18,6 +15,58 @@ type PdfDocumentViewerProps = {
   className?: string;
   documentClassName?: string;
 };
+
+function LazyPage({
+  pageNumber,
+  width,
+  pixelRatio,
+}: {
+  pageNumber: number;
+  width: number;
+  pixelRatio: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || shouldRender) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "150% 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  const placeholderHeight = Math.round(width * 1.414);
+
+  return (
+    <div
+      ref={ref}
+      className="flex w-full justify-center"
+      style={{ minHeight: width > 0 ? placeholderHeight : 480 }}
+    >
+      {shouldRender && width > 0 ? (
+        <Page
+          pageNumber={pageNumber}
+          width={width}
+          devicePixelRatio={pixelRatio}
+          renderTextLayer={false}
+          renderAnnotationLayer={false}
+          className="shadow-sm"
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function PdfDocumentViewer({
   file,
@@ -31,13 +80,17 @@ export function PdfDocumentViewer({
   const [width, setWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [pixelRatio, setPixelRatio] = useState(1);
 
   useEffect(() => {
+    setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+
     const node = containerRef.current;
     if (!node) return;
 
     const updateWidth = () => {
-      setWidth(Math.floor(node.clientWidth));
+      // Leave a little horizontal padding room on narrow screens.
+      setWidth(Math.max(Math.floor(node.clientWidth) - 8, 280));
     };
 
     updateWidth();
@@ -50,12 +103,22 @@ export function PdfDocumentViewer({
   return (
     <div
       ref={containerRef}
-      className={`w-full flex ${className}`}
+      className={`flex w-full ${className ?? ""}`}
       role="document"
       aria-label={title}
     >
       {failed ? (
-        <p className="text-center text-sm text-foreground/70">{errorLabel}</p>
+        <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
+          <p className="text-sm text-foreground/70">{errorLabel}</p>
+          <a
+            href={file}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            {file.split("/").pop()}
+          </a>
+        </div>
       ) : (
         <Document
           file={file}
@@ -69,17 +132,20 @@ export function PdfDocumentViewer({
             setFailed(false);
           }}
           onLoadError={() => setFailed(true)}
-          className={`flex flex-col items-center gap-3 ${documentClassName}`}
+          error={
+            <div className="flex w-full flex-col items-center gap-3 p-6 text-center">
+              <p className="text-sm text-foreground/70">{errorLabel}</p>
+            </div>
+          }
+          className={`flex w-full flex-col items-center gap-3 ${documentClassName ?? ""}`}
         >
           {width > 0 &&
             Array.from({ length: numPages }, (_, index) => (
-              <Page
+              <LazyPage
                 key={`page_${index + 1}`}
                 pageNumber={index + 1}
                 width={width}
-                renderTextLayer
-                renderAnnotationLayer
-                className="shadow-sm"
+                pixelRatio={pixelRatio}
               />
             ))}
         </Document>
