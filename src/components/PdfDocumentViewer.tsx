@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -37,44 +37,19 @@ const PdfPage = memo(function PdfPage({
   height: number;
   pixelRatio: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  // Keep a couple of pages warm so the first screen is immediate.
-  const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node || shouldRender) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldRender(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "120% 0px" },
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [shouldRender]);
-
   return (
     <div
-      ref={ref}
       className="flex w-full shrink-0 justify-center"
       style={{ width: "100%", height }}
     >
-      {shouldRender ? (
-        <Page
-          pageNumber={pageNumber}
-          width={width}
-          devicePixelRatio={pixelRatio}
-          renderTextLayer={false}
-          renderAnnotationLayer={false}
-          loading={null}
-        />
-      ) : null}
+      <Page
+        pageNumber={pageNumber}
+        width={width}
+        devicePixelRatio={pixelRatio}
+        renderTextLayer={false}
+        renderAnnotationLayer={false}
+        loading={null}
+      />
     </div>
   );
 });
