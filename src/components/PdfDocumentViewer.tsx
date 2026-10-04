@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -20,6 +20,12 @@ function initialWidth() {
   return Math.max(Math.floor(window.innerWidth - 16), 280);
 }
 
+function initialPixelRatio() {
+  if (typeof window === "undefined") return 2;
+  // iPhone 16 is ~3x; match screen density for crisp canvases.
+  return Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+}
+
 const PdfPage = memo(function PdfPage({
   pageNumber,
   width,
@@ -31,19 +37,44 @@ const PdfPage = memo(function PdfPage({
   height: number;
   pixelRatio: number;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Keep a couple of pages warm so the first screen is immediate.
+  const [shouldRender, setShouldRender] = useState(pageNumber <= 2);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || shouldRender) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "120% 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
   return (
     <div
+      ref={ref}
       className="flex w-full shrink-0 justify-center"
       style={{ width: "100%", height }}
     >
-      <Page
-        pageNumber={pageNumber}
-        width={width}
-        devicePixelRatio={pixelRatio}
-        renderTextLayer={false}
-        renderAnnotationLayer={false}
-        loading={null}
-      />
+      {shouldRender ? (
+        <Page
+          pageNumber={pageNumber}
+          width={width}
+          devicePixelRatio={pixelRatio}
+          renderTextLayer={false}
+          renderAnnotationLayer={false}
+          loading={null}
+        />
+      ) : null}
     </div>
   );
 });
@@ -60,11 +91,7 @@ export function PdfDocumentViewer({
   const [aspectRatio, setAspectRatio] = useState(1.414);
   const [numPages, setNumPages] = useState(0);
   const [failed, setFailed] = useState(false);
-  const [pixelRatio] = useState(() =>
-    typeof window === "undefined"
-      ? 1
-      : Math.min(window.devicePixelRatio || 1, 1.25),
-  );
+  const [pixelRatio] = useState(initialPixelRatio);
 
   const pageHeight = useMemo(
     () => (width > 0 ? Math.round(width * aspectRatio) : 0),
