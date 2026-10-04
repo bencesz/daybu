@@ -24,3 +24,7 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.link-button {
+  @apply flex items-center justify-center px-4 py-3 gap-3 rounded-md text-xl text-shadow-xs font-mono tracking-tight bg-linear-to-b from-sky-500 to-sky-700 text-white group-hover:from-sky-700 transition-colors duration-300;
+}
