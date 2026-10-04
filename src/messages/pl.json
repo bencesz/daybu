@@ -10,7 +10,7 @@
     "home": "Strona główna",
     "download": "Pobierz PDF",
     "pdfTitle": "Dokument referencyjny PDF",
-    "mobileFallback": "Jeśli PDF się nie wyświetla, użyj linku do pobrania powyżej."
+    "mobileFallback": "Jeśli PDF się nie wyświetla, użyj linku do pobrania."
   },
   "LocaleSwitcher": {
     "label": "Język",

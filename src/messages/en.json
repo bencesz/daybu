@@ -10,7 +10,7 @@
     "home": "Home",
     "download": "Download PDF",
     "pdfTitle": "Reference PDF",
-    "mobileFallback": "If the PDF does not display, use the download link above."
+    "mobileFallback": "If the PDF does not display, use the download link."
   },
   "LocaleSwitcher": {
     "label": "Language",

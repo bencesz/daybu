@@ -24,6 +24,13 @@ export default function ReferencePage() {
 
       <p className="text-center text-sm text-foreground/60 sm:hidden">
         {t("mobileFallback")}
+        <Link
+          href="/reference.pdf"
+          download="reference.pdf"
+          className="text-sm font-medium text-foreground underline underline-offset-4 hover:opacity-70"
+        >
+          {t("download")}
+        </Link>
       </p>
     </main>
   );
