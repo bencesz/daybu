@@ -1,0 +1,20 @@
+{
+  "Metadata": {
+    "title": "daybu",
+    "description": "daybu"
+  },
+  "Home": {
+    "referenceLink": "Go to PDF"
+  },
+  "Reference": {
+    "home": "Home",
+    "download": "Download PDF",
+    "pdfTitle": "Reference PDF",
+    "mobileFallback": "If the PDF does not display, use the download link above."
+  },
+  "LocaleSwitcher": {
+    "label": "Language",
+    "pl": "PL",
+    "en": "EN"
+  }
+}
